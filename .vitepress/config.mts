@@ -18,7 +18,9 @@ export default withMermaid(
       'DeepFlow leverages eBPF and Wasm to achieve zero-code and full-stack observability, enabling continuous innovation in cloud-native and AI applications.',
 
     srcDir: 'docs',
-    // 产物默认输出到 <项目根>/dist,与 Dockerfile 的 COPY ./dist 对齐
+    // 产物输出到仓库根 dist(默认是 .vitepress/dist),与 Dockerfile 的 COPY ./dist
+    // 及 df-help 企业版 CI 的 mv ./docs/dist/* 对齐
+    outDir: 'dist',
     base: '/docs/',
     // 旧站仅有暗色模式:强制暗色。注意 appearance 是根级配置项,
     // 放在 themeConfig 下不会生效(源码读 userConfig.appearance)

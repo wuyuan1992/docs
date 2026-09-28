@@ -50,41 +50,26 @@ export function enTreeRoot() {
 /**
  * @returns {{ enMap: Map<string,string>, zhMap: Map<string,string> }}
  *   url(无前后斜杠,如 'about/overview') -> srcDir 相对源文件路径
+ *
+ * 数据来源为 .vitepress/rewrites.generated.json(单一事实来源,反查其映射):
+ *   - 本仓库提交态的该文件由 scripts/gen-rewrites.mjs 生成,内容与逐文件解析
+ *     permalink 等价;
+ *   - 企业版(df-help)构建时会在合并内容后重新生成该文件,额外包含大量无
+ *     permalink 的历史页面(按去编号目录路径推导 URL),本函数随之自动覆盖,
+ *     使 legacy-links 对这些页面的链接也能解析。
  */
 export function collectMaps() {
   const enMap = new Map()
   const zhMap = new Map()
 
-  const fill = (map, treeRoot, prefix) => {
-    for (const file of walkMd(treeRoot)) {
-      const rel = prefix + path.relative(treeRoot, file).split(path.sep).join('/')
-      if (rel === 'README.md' || rel === 'index.md' || rel.endsWith('/README.md')) continue
-      const { permalink } = parseFrontmatter(file)
-      if (!permalink) continue
-      const url = permalinkToUrl(permalink)
-      if (url && !map.has(url)) map.set(url, rel)
-    }
-  }
-
-  const docsRoot = path.join(ROOT, 'docs')
-  if (fs.existsSync(path.join(docsRoot, '01-about'))) {
-    // CI 构建态:英文树已合并到 docs/ 下,只取编号分区目录(排除 zh/、public/)
-    for (const name of fs.readdirSync(docsRoot)) {
-      if (/^\d+-/.test(name)) fill(enMap, path.join(docsRoot, name), `${name}/`)
-    }
-  } else {
-    fill(enMap, path.join(ROOT, 'translate/translated'), '')
-  }
-  fill(zhMap, path.join(docsRoot, 'zh'), 'zh/')
-
-  // downloadFile.json 声明的 CI 下载页面
-  const jsonPath = path.join(ROOT, 'downloadFile.json')
-  if (fs.existsSync(jsonPath)) {
-    for (const { output, meta } of JSON.parse(fs.readFileSync(jsonPath, 'utf8'))) {
-      const rel = output.replace(/^\.\//, '').replace(/^docs\//, '')
-      const url = permalinkToUrl(meta.permalink)
-      ;(rel.startsWith('zh/') ? zhMap : enMap).set(url, rel)
-    }
+  const rewrites = JSON.parse(
+    fs.readFileSync(path.join(ROOT, '.vitepress/rewrites.generated.json'), 'utf8')
+  )
+  for (const [src, target] of Object.entries(rewrites)) {
+    const isZh = target.startsWith('zh/')
+    const url = target.replace(/^zh\//, '').replace(/\.md$/, '')
+    const map = isZh ? zhMap : enMap
+    if (url && !map.has(url)) map.set(url, src)
   }
 
   return { enMap, zhMap }
